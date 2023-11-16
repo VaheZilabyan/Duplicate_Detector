@@ -13,33 +13,46 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 }
 
-void MainWindow::on_pushButton_browse_clicked()
+void MainWindow::set_text_in_textEdit(QString filename)
 {
-    ui->listWidget->clear();
-    ui->textEdit->clear();
-
     QString fileContent;
-    QString filename = QFileDialog::getOpenFileName(this, "Choose File");
     if(filename.isEmpty())
         return;
-
     QFile file(filename);
     if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
         return;
     QTextStream in(&file);
     fileContent = in.readAll();
     file.close();
+    ui->textEdit->clear();
     ui->textEdit->setPlainText(fileContent);
+}
 
-    QString dirname = filename.remove(filename.split('/').last());
+void MainWindow::on_pushButton_browse_clicked()
+{
+    QString filename = QFileDialog::getOpenFileName(this, "Choose File");
+    set_text_in_textEdit(filename);
+
+    // show all files
+    dirname = filename.remove(filename.split('/').last());
     QDir dir(dirname);
+    ui->listWidget->clear();
     for (const QFileInfo &file : dir.entryInfoList(QDir::Files))
     {
         QListWidgetItem *item = new QListWidgetItem(file.fileName());
-        item->setData(Qt::UserRole, file.absolutePath()); // if you need absolute path of the file
+        item->setData(Qt::UserRole, file.absolutePath());
         ui->listWidget->addItem(item);
     }
     ui->lineEdit->setText(dirname);
+}
+
+void MainWindow::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
+
+{
+    ui->statusbar->showMessage(item->text());
+
+    QString filename = dirname + item->text();
+    set_text_in_textEdit(filename);
 }
 
 MainWindow::~MainWindow()
