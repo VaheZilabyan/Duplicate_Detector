@@ -135,19 +135,6 @@
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QCheckBox" name="checkBox_4">
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>26</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>Ignore annotations?</string>
-          </property>
-         </widget>
-        </item>
        </layout>
       </item>
       <item>
@@ -217,6 +204,12 @@
           <width>0</width>
           <height>340</height>
          </size>
+        </property>
+        <property name="showGrid">
+         <bool>true</bool>
+        </property>
+        <property name="gridStyle">
+         <enum>Qt::SolidLine</enum>
         </property>
         <column>
          <property name="text">

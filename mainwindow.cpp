@@ -8,15 +8,109 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+    //, ui(new Ui::MainWindow)
 {
-    ui->setupUi(this);
+    //ui->setupUi(this);
+    this->resize(800, 660);
+    this->setMinimumWidth(650);
+    this->setMinimumHeight(550);
+    this->statusBar()->showMessage("test status");
+
+    file_menu = new QMenu("File", this);
+    view_menu = new QMenu("View", this);
+    help_menu = new QMenu("Help", this);
+    about_menu = new QMenu("About", this);
+    this->menuBar()->addMenu(file_menu);
+    this->menuBar()->addMenu(view_menu);
+    this->menuBar()->addMenu(help_menu);
+    this->menuBar()->addMenu(about_menu);
+
+    QWidget *centralWidget = new QWidget(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+    QWidget *north_widget = new QWidget(this);
+    QWidget *south_widget = new QWidget(this);
+    north_widget->setMinimumHeight(200);
+    north_widget->setMaximumHeight(200);
+
+    mainLayout->addWidget(north_widget);
+    mainLayout->addWidget(south_widget);
+    setCentralWidget(centralWidget);
+
+    QHBoxLayout *south_layout = new QHBoxLayout(south_widget);
+    table_widget = new QTableWidget(south_widget);
+    table_widget->setColumnCount(3);
+    table_widget->setHorizontalHeaderItem(0, new QTableWidgetItem("Source"));
+    table_widget->setHorizontalHeaderItem(1, new QTableWidgetItem("Matches"));
+    table_widget->setHorizontalHeaderItem(2, new QTableWidgetItem("Lines"));
+
+    text_edit = new QTextEdit(south_widget);
+    south_layout->addWidget(table_widget);
+    south_layout->addWidget(text_edit);
+
+    QVBoxLayout *north_layout = new QVBoxLayout(north_widget);
+    // --- 1 ---- //
+    QLabel *root_source_dir = new QLabel("Root source directory", north_widget);
+    line_edit = new QLineEdit(north_widget);
+    browse_button = new QPushButton("Browse", north_widget);
+    QHBoxLayout *layout_1 = new QHBoxLayout();
+    layout_1->addWidget(root_source_dir);
+    layout_1->addWidget(line_edit);
+    layout_1->addWidget(browse_button);
+
+    // --- 2 ---- //
+    QLabel *label_spinbox = new QLabel("Reporte duplicate chunks larger than");
+    QLabel *label_language = new QLabel("Language");
+    spin_box = new QSpinBox(north_widget);
+    spin_box->setMaximum(1000);
+    comboBox_language = new QComboBox(north_widget);
+    comboBox_language->addItem("C++");
+    comboBox_language->addItem("C");
+    comboBox_language->addItem("Java");
+    comboBox_language->addItem("Python");
+    QHBoxLayout *layout_2 = new QHBoxLayout();
+    layout_2->addWidget(label_spinbox);
+    layout_2->addWidget(spin_box);
+    layout_2->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+    layout_2->addWidget(label_language);
+    layout_2->addWidget(comboBox_language);
+
+    // --- 3 ---- //
+    checkBox_subdirection = new QCheckBox("Also can be subdirection?", north_widget);
+    checkBox_literals = new QCheckBox("Ignore literals?", north_widget);
+    checkBox_identifiers = new QCheckBox("Ignore identifiers?", north_widget);
+    QVBoxLayout *checkBox_layout = new QVBoxLayout();
+    checkBox_layout->addWidget(checkBox_subdirection);
+    checkBox_layout->addWidget(checkBox_literals);
+    checkBox_layout->addWidget(checkBox_identifiers);
+    list_widget = new QListWidget(north_widget);
+    QHBoxLayout *layout_3 = new QHBoxLayout();
+    layout_3->addLayout(checkBox_layout);
+    layout_3->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+    layout_3->addWidget(list_widget);
+
+    // --- 4 ---- //
+    QLabel *label_file_encoding = new QLabel("File encoding");
+    comboBox_encoding = new QComboBox(north_widget);
+    comboBox_encoding->addItem("UTF-8");
+    go_button = new QPushButton("Go", north_widget);
+    QHBoxLayout *layout_4 = new QHBoxLayout();
+    layout_4->addWidget(label_file_encoding);
+    layout_4->addWidget(comboBox_encoding);
+    layout_4->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+    layout_4->addWidget(go_button);
+
+    north_layout->addLayout(layout_1);
+    north_layout->addLayout(layout_2);
+    north_layout->addLayout(layout_3);
+    north_layout->addLayout(layout_4);
+
+    connect(browse_button, &QPushButton::clicked, this, &MainWindow::on_browse_button_clicked);
 }
 
-void MainWindow::on_pushButton_browse_clicked()
+void MainWindow::on_browse_button_clicked()
 {
-    ui->listWidget->clear();
-    ui->textEdit->clear();
+    list_widget->clear();
+    text_edit->clear();
 
     QString fileContent;
     QString filename = QFileDialog::getOpenFileName(this, "Choose File");
@@ -29,7 +123,7 @@ void MainWindow::on_pushButton_browse_clicked()
     QTextStream in(&file);
     fileContent = in.readAll();
     file.close();
-    ui->textEdit->setPlainText(fileContent);
+    text_edit->setPlainText(fileContent);
 
     QString dirname = filename.remove(filename.split('/').last());
     QDir dir(dirname);
@@ -37,12 +131,12 @@ void MainWindow::on_pushButton_browse_clicked()
     {
         QListWidgetItem *item = new QListWidgetItem(file.fileName());
         item->setData(Qt::UserRole, file.absolutePath()); // if you need absolute path of the file
-        ui->listWidget->addItem(item);
+        list_widget->addItem(item);
     }
-    ui->lineEdit->setText(dirname);
+    line_edit->setText(dirname);
 }
 
 MainWindow::~MainWindow()
 {
-    delete ui;
+    //delete ui;
 }
