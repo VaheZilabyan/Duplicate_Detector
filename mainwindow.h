@@ -51,7 +51,7 @@ private:
     QComboBox *comboBox_encoding;
     QPushButton *open_editor;
     QPushButton *go_button;
-    QString filename;
+    QString filePath_m;
 };
 
 #endif // MAINWINDOW_H

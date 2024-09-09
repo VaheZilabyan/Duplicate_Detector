@@ -115,20 +115,17 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 void MainWindow::on_open_editor_clicked() {
-    statusBar()->showMessage(filename);
+    statusBar()->showMessage(filePath_m);
 
-    if (filename.isEmpty()) {
+    if (filePath_m.isEmpty()) {
         statusBar()->showMessage("Browse file");
         return;
     }
-    //QFileInfo file_info(filename);
-    //const QString& filePath = file_info.absolutePath();
-    const QString& filePath = "D:/cpp_programs/c++/c++17/optional.cpp";
 
     int line = 1;
     QString program = "C:/Users/vzila/AppData/Local/Programs/Microsoft VS Code/Code.exe";
     QStringList arguments;
-    arguments << "--goto" << QString("%1:%2").arg(filePath).arg(line);
+    arguments << "--goto" << QString("%1:%2").arg(filePath_m).arg(line);
     bool success = QProcess::startDetached(program, arguments);
     if (!success) {
         qDebug() << "Failed to launch VS Code!";
@@ -141,12 +138,12 @@ void MainWindow::on_browse_button_clicked()
     text_edit->clear();
 
     QString fileContent;
-    QString filename_ = QFileDialog::getOpenFileName(this, "Choose File");
-    this->filename = filename_;
+    QString filename = QFileDialog::getOpenFileName(this, "Choose File");
+    this->filePath_m = filename;
     if(filename.isEmpty())
         return;
 
-    QFile file(filename_);
+    QFile file(filename);
     if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
         return;
     QTextStream in(&file);
@@ -154,7 +151,7 @@ void MainWindow::on_browse_button_clicked()
     file.close();
     text_edit->setPlainText(fileContent);
 
-    QString dirname = filename_.remove(filename_.split('/').last());
+    QString dirname = filename.remove(filename.split('/').last());
     QDir dir(dirname);
     for (const QFileInfo &file : dir.entryInfoList(QDir::Files))
     {
@@ -175,6 +172,7 @@ void MainWindow::on_list_item_selected(QListWidgetItem *item) {
     statusBar()->showMessage(filePath); // Display the selected file path in the status bar
 
     QString filename = filePath + "/" + item->text();
+    filePath_m = filename;
     // Optionally, open the file or perform another action based on the selection
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
