@@ -6,6 +6,8 @@
 #include <QTextStream>
 #include <QListWidgetItem>
 
+#include <QProcess>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     //, ui(new Ui::MainWindow)
@@ -43,7 +45,8 @@ MainWindow::MainWindow(QWidget *parent)
     table_widget->setHorizontalHeaderItem(1, new QTableWidgetItem("Matches"));
     table_widget->setHorizontalHeaderItem(2, new QTableWidgetItem("Lines"));
 
-    text_edit = new QTextEdit(south_widget);
+    text_edit = new QPlainTextEdit(south_widget);
+    text_edit->setReadOnly(true);
     south_layout->addWidget(table_widget);
     south_layout->addWidget(text_edit);
 
@@ -92,11 +95,13 @@ MainWindow::MainWindow(QWidget *parent)
     QLabel *label_file_encoding = new QLabel("File encoding");
     comboBox_encoding = new QComboBox(north_widget);
     comboBox_encoding->addItem("UTF-8");
+    open_editor = new QPushButton("Open in Editor", north_widget);
     go_button = new QPushButton("Go", north_widget);
     QHBoxLayout *layout_4 = new QHBoxLayout();
     layout_4->addWidget(label_file_encoding);
     layout_4->addWidget(comboBox_encoding);
     layout_4->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+    layout_4->addWidget(open_editor);
     layout_4->addWidget(go_button);
 
     north_layout->addLayout(layout_1);
@@ -105,6 +110,28 @@ MainWindow::MainWindow(QWidget *parent)
     north_layout->addLayout(layout_4);
 
     connect(browse_button, &QPushButton::clicked, this, &MainWindow::on_browse_button_clicked);
+    connect(open_editor, &QPushButton::clicked, this, &MainWindow::on_open_editor_clicked);
+}
+
+void MainWindow::on_open_editor_clicked() {
+    statusBar()->showMessage(filename);
+
+    if (filename.isEmpty()) {
+        statusBar()->showMessage("Browse file");
+        return;
+    }
+    //QFileInfo file_info(filename);
+    //const QString& filePath = file_info.absolutePath();
+    const QString& filePath = "D:/cpp_programs/c++/c++17/optional.cpp";
+
+    int line = 1;
+    QString program = "C:/Users/vzila/AppData/Local/Programs/Microsoft VS Code/Code.exe";
+    QStringList arguments;
+    arguments << "--goto" << QString("%1:%2").arg(filePath).arg(line);
+    bool success = QProcess::startDetached(program, arguments);
+    if (!success) {
+        qDebug() << "Failed to launch VS Code!";
+    }
 }
 
 void MainWindow::on_browse_button_clicked()
@@ -113,11 +140,12 @@ void MainWindow::on_browse_button_clicked()
     text_edit->clear();
 
     QString fileContent;
-    QString filename = QFileDialog::getOpenFileName(this, "Choose File");
+    QString filename_ = QFileDialog::getOpenFileName(this, "Choose File");
+    this->filename = filename_;
     if(filename.isEmpty())
         return;
 
-    QFile file(filename);
+    QFile file(filename_);
     if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
         return;
     QTextStream in(&file);
@@ -125,7 +153,7 @@ void MainWindow::on_browse_button_clicked()
     file.close();
     text_edit->setPlainText(fileContent);
 
-    QString dirname = filename.remove(filename.split('/').last());
+    QString dirname = filename_.remove(filename_.split('/').last());
     QDir dir(dirname);
     for (const QFileInfo &file : dir.entryInfoList(QDir::Files))
     {

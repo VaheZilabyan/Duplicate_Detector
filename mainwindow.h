@@ -10,7 +10,7 @@
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QListWidget>
-#include <QTextEdit>
+#include <QPlainTextEdit>
 #include <QTableWidget>
 
 QT_BEGIN_NAMESPACE
@@ -28,6 +28,7 @@ public:
 
 private slots:
     void on_browse_button_clicked();
+    void on_open_editor_clicked();
 
 private:
     //Ui::MainWindow *ui;
@@ -36,7 +37,7 @@ private:
     QMenu *help_menu;
     QMenu *about_menu;
     QTableWidget *table_widget;
-    QTextEdit *text_edit;
+    QPlainTextEdit *text_edit;
     QLineEdit *line_edit;
     QPushButton *browse_button;
     QSpinBox *spin_box;
@@ -46,7 +47,9 @@ private:
     QCheckBox *checkBox_identifiers;
     QListWidget *list_widget;
     QComboBox *comboBox_encoding;
+    QPushButton *open_editor;
     QPushButton *go_button;
+    QString filename;
 };
 
 #endif // MAINWINDOW_H
