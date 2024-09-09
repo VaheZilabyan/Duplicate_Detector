@@ -10,7 +10,7 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    //, ui(new Ui::MainWindow)
+//, ui(new Ui::MainWindow)
 {
     //ui->setupUi(this);
     this->resize(800, 660);
@@ -111,6 +111,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(browse_button, &QPushButton::clicked, this, &MainWindow::on_browse_button_clicked);
     connect(open_editor, &QPushButton::clicked, this, &MainWindow::on_open_editor_clicked);
+    connect(go_button, &QPushButton::clicked, this, &MainWindow::on_go_button_clicked);
 }
 
 void MainWindow::on_open_editor_clicked() {
@@ -162,6 +163,54 @@ void MainWindow::on_browse_button_clicked()
         list_widget->addItem(item);
     }
     line_edit->setText(dirname);
+    connect(list_widget, &QListWidget::itemClicked, this, &MainWindow::on_list_item_selected);
+}
+
+void MainWindow::on_list_item_selected(QListWidgetItem *item) {
+    if (!item) {
+        return; // Guard against null pointer
+    }
+
+    QString filePath = item->data(Qt::UserRole).toString(); // Get the absolute path if you stored it
+    statusBar()->showMessage(filePath); // Display the selected file path in the status bar
+
+    QString filename = filePath + "/" + item->text();
+    // Optionally, open the file or perform another action based on the selection
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return; // Handle error if necessary
+    }
+
+    QTextStream in(&file);
+    QString content = in.readAll();
+    file.close();
+
+    text_edit->setPlainText(content);  // Display the content of the selected file in text_edit
+}
+
+void MainWindow::on_go_button_clicked() {
+    QString directory = line_edit->text();  // Get the directory entered in the line edit.
+    int threshold = spin_box->value();       // Get the value from the spin box.
+    QString language = comboBox_language->currentText(); // Get the selected language from the combo box.
+    bool ignoreLiterals = checkBox_literals->isChecked(); // Check if "Ignore literals?" is checked.
+    bool ignoreIdentifiers = checkBox_identifiers->isChecked(); // Check if "Ignore identifiers?" is checked.
+    bool includeSubdirs = checkBox_subdirection->isChecked(); // Check if "Also can be subdirection?" is checked.
+
+    // Here, you would typically start the process of analyzing the source code in the specified directory.
+    // You could emit a signal, call a method, or start a new process that performs your analysis.
+
+    // For demonstration, we'll just update the status bar with the parameters chosen.
+    QString message = QString("Going to analyze %1 with threshold %2 for %3").arg(directory).arg(threshold).arg(language);
+    statusBar()->showMessage(message);
+
+    if(includeSubdirs) {
+        qDebug() << "TODO: Not implemented";
+    }
+    else {
+        qDebug() << "TODO: Not implemented";
+    }
+    // You may want to call another method for actual processing, e.g.:
+    // startAnalysis(directory, threshold, language, ignoreLiterals, ignoreIdentifiers, includeSubdirs);
 }
 
 MainWindow::~MainWindow()

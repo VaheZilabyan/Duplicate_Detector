@@ -29,6 +29,8 @@ public:
 private slots:
     void on_browse_button_clicked();
     void on_open_editor_clicked();
+    void on_list_item_selected(QListWidgetItem *item);
+    void on_go_button_clicked();
 
 private:
     //Ui::MainWindow *ui;
