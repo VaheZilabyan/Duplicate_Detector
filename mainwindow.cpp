@@ -1,12 +1,14 @@
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
 
 #include <QFile>
 #include <QFileDialog>
 #include <QTextStream>
 #include <QListWidgetItem>
-
+#include <QStatusBar>
+#include <QMenu>
+#include <QMenuBar>
 #include <QProcess>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -115,17 +117,20 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 void MainWindow::on_open_editor_clicked() {
-    statusBar()->showMessage(filePath_m);
+    statusBar()->showMessage(filename);
 
-    if (filePath_m.isEmpty()) {
+    if (filename.isEmpty()) {
         statusBar()->showMessage("Browse file");
         return;
     }
+    //QFileInfo file_info(filename);
+    //const QString& filePath = file_info.absolutePath();
+    const QString& filePath = "D:/cpp_programs/c++/c++17/optional.cpp";
 
     int line = 1;
     QString program = "C:/Users/vzila/AppData/Local/Programs/Microsoft VS Code/Code.exe";
     QStringList arguments;
-    arguments << "--goto" << QString("%1:%2").arg(filePath_m).arg(line);
+    arguments << "--goto" << QString("%1:%2").arg(filePath).arg(line);
     bool success = QProcess::startDetached(program, arguments);
     if (!success) {
         qDebug() << "Failed to launch VS Code!";
@@ -138,12 +143,12 @@ void MainWindow::on_browse_button_clicked()
     text_edit->clear();
 
     QString fileContent;
-    QString filename = QFileDialog::getOpenFileName(this, "Choose File");
-    this->filePath_m = filename;
+    QString filename_ = QFileDialog::getOpenFileName(this, "Choose File");
+    this->filename = filename_;
     if(filename.isEmpty())
         return;
 
-    QFile file(filename);
+    QFile file(filename_);
     if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
         return;
     QTextStream in(&file);
@@ -151,7 +156,7 @@ void MainWindow::on_browse_button_clicked()
     file.close();
     text_edit->setPlainText(fileContent);
 
-    QString dirname = filename.remove(filename.split('/').last());
+    QString dirname = filename_.remove(filename_.split('/').last());
     QDir dir(dirname);
     for (const QFileInfo &file : dir.entryInfoList(QDir::Files))
     {
@@ -172,7 +177,6 @@ void MainWindow::on_list_item_selected(QListWidgetItem *item) {
     statusBar()->showMessage(filePath); // Display the selected file path in the status bar
 
     QString filename = filePath + "/" + item->text();
-    filePath_m = filename;
     // Optionally, open the file or perform another action based on the selection
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -186,12 +190,69 @@ void MainWindow::on_list_item_selected(QListWidgetItem *item) {
     text_edit->setPlainText(content);  // Display the content of the selected file in text_edit
 }
 
+void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b) {
+    std::ifstream fa(file_a);
+    std::ifstream fb(file_b);
+    
+    if (!fa.is_open() || !fb.is_open()) {
+        std::cerr << "Error opening files: " << file_a << " or " << file_b << std::endl;
+        return;
+    }
+    
+    std::vector<std::string> lines_a, lines_b;
+    std::string line;
+
+    // Read lines from both files
+    while (std::getline(fa, line)) {
+        lines_a.push_back(line);
+    }
+    while (std::getline(fb, line)) {
+        lines_b.push_back(line);
+    }
+
+    int len_a = lines_a.size();
+    int len_b = lines_b.size();
+    std::vector<std::vector<int>> dp(len_a + 1, std::vector<int>(len_b + 1, 0));
+
+    int max_len = 0; // Length of longest match
+    std::pair<int, int> max_pos(0, 0); // End position of the longest match
+
+    // Dynamic programming table to find longest common consecutive lines
+    for (int i = 1; i <= len_a; ++i) {
+        for (int j = 1; j <= len_b; ++j) {
+            if (lines_a[i - 1] == lines_b[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+                if (dp[i][j] > max_len) {
+                    max_len = dp[i][j];
+                    max_pos = {i, j};
+                }
+            }
+        }
+    }
+
+    // Extract the longest common sequence
+    if (max_len > 0) {
+        std::cout << "Most common duplicate lines between given files are " << max_len << " consecutive lines:" << std::endl;
+        for (int i = max_pos.first - max_len; i < max_pos.first; ++i) {
+            std::cout << lines_a[i] << std::endl;
+        }
+    } else {
+        std::cout << "No common consecutive lines found." << std::endl;
+    }
+}
+bool MainWindow::ends_with(const std::string& str, const std::string& suffix) {
+    if (str.length() < suffix.length()) {
+        return false; // str is shorter than suffix
+    }
+    return str.compare(str.length() - suffix.length(), suffix.length(), suffix) == 0;
+}
+
 void MainWindow::on_go_button_clicked() {
     QString directory = line_edit->text();  // Get the directory entered in the line edit.
     int threshold = spin_box->value();       // Get the value from the spin box.
     QString language = comboBox_language->currentText(); // Get the selected language from the combo box.
-    bool ignoreLiterals = checkBox_literals->isChecked(); // Check if "Ignore literals?" is checked.
-    bool ignoreIdentifiers = checkBox_identifiers->isChecked(); // Check if "Ignore identifiers?" is checked.
+    //bool ignoreLiterals = checkBox_literals->isChecked(); // Check if "Ignore literals?" is checked.
+    //bool ignoreIdentifiers = checkBox_identifiers->isChecked(); // Check if "Ignore identifiers?" is checked.
     bool includeSubdirs = checkBox_subdirection->isChecked(); // Check if "Also can be subdirection?" is checked.
 
     // Here, you would typically start the process of analyzing the source code in the specified directory.
@@ -200,9 +261,53 @@ void MainWindow::on_go_button_clicked() {
     // For demonstration, we'll just update the status bar with the parameters chosen.
     QString message = QString("Going to analyze %1 with threshold %2 for %3").arg(directory).arg(threshold).arg(language);
     statusBar()->showMessage(message);
+	std::vector<std::string> valid_extensions;
+
+	if (language == "C++") {
+		valid_extensions = {".cpp", ".h", ".hpp", ".c", ".cc"};
+	}
+	// TODO: add else ifs for other languages
+	else {
+		valid_extensions = {".cpp", ".h", ".hpp", ".c", ".cc"};
+		std::cout << "We should never reach there, there is a bug in the code: Call 911" << std::endl;
+	}
+
+	//std::cout << "MY DIR: " << directory.toStdString();
+	// Changing dir    
+	if (chdir(directory.toStdString().c_str()) != 0) {
+        perror("chdir failed");
+    }
 
     if(includeSubdirs) {
-        qDebug() << "TODO: Not implemented";
+    	std::vector<std::string> files;
+		// Traverse the directory and collect valid files
+		for (const auto& entry : std::filesystem::directory_iterator("./")) {
+		    if (entry.is_regular_file()) {
+		        std::string file_path = entry.path().string();
+		        for (const auto& extension : valid_extensions) {
+		            if (ends_with(file_path, extension)) {
+		                files.push_back(file_path);
+		                break;
+		            }
+		        }
+		    }
+		}
+
+		////
+		for (size_t i = 0; i < files.size(); ++i) {
+		    std::cout << files[i] << std::endl;
+		}
+		////
+
+		// Compare each file with every other file
+		for (size_t i = 0; i < files.size(); ++i) {
+		    for (size_t j = 0; j < files.size(); ++j) {
+		        if (i != j) {  // Avoid processing the same file
+		            std::cout << "Processing " << files[i] << " with " << files[j] << std::endl;
+		            findMostConsecutiveCommonLines(files[i], files[j]);
+		        }
+		    }
+		}
     }
     else {
         qDebug() << "TODO: Not implemented";
@@ -211,7 +316,3 @@ void MainWindow::on_go_button_clicked() {
     // startAnalysis(directory, threshold, language, ignoreLiterals, ignoreIdentifiers, includeSubdirs);
 }
 
-MainWindow::~MainWindow()
-{
-    //delete ui;
-}

@@ -5,7 +5,7 @@ CXX = g++
 CXXFLAGS = -Wall -Wextra -std=c++17 `pkg-config --cflags Qt5Widgets`
  
 # Linker flags
-LDFLAGS = `pkg-config --libs Qt5Widgets`
+LDFLAGS = `pkg-config --libs Qt5Widgets` -lstdc++fs
  
 # Source files
 SRCS = main.cpp mainwindow.cpp

@@ -12,19 +12,21 @@
 #include <QListWidget>
 #include <QPlainTextEdit>
 #include <QTableWidget>
-
-QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
-QT_END_NAMESPACE
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <unistd.h>
+#include <string>
+#include <filesystem>
 
 class MainWindow : public QMainWindow
-
 {
     Q_OBJECT
 
 public:
     MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+	void findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b);
+	bool ends_with(const std::string& str, const std::string& suffix);
 
 private slots:
     void on_browse_button_clicked();
@@ -51,7 +53,8 @@ private:
     QComboBox *comboBox_encoding;
     QPushButton *open_editor;
     QPushButton *go_button;
-    QString filePath_m;
+    QString filename;
 };
 
 #endif // MAINWINDOW_H
+
