@@ -25,8 +25,8 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
-	void findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b);
-	bool ends_with(const std::string& str, const std::string& suffix);
+    void findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b, size_t& max_len, std::pair<int, int> &line_numbers);
+    bool ends_with(const std::string& str, const std::string& suffix);
 
 private slots:
     void on_browse_button_clicked();

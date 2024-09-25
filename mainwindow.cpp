@@ -43,9 +43,17 @@ MainWindow::MainWindow(QWidget *parent)
     QHBoxLayout *south_layout = new QHBoxLayout(south_widget);
     table_widget = new QTableWidget(south_widget);
     table_widget->setColumnCount(3);
+    table_widget->setRowCount(0);
     table_widget->setHorizontalHeaderItem(0, new QTableWidgetItem("Source"));
     table_widget->setHorizontalHeaderItem(1, new QTableWidgetItem("Matches"));
     table_widget->setHorizontalHeaderItem(2, new QTableWidgetItem("Lines"));
+
+    /*for (int i = 0; i < 5; ++i) {
+        int row = table_widget->rowCount();  // Get the current number of rows
+        table_widget->insertRow(row);  // Insert a new row at the end
+        table_widget->setItem(row, 0, new QTableWidgetItem(QString("Item %1").arg(i)));
+        table_widget->setItem(row, 1, new QTableWidgetItem(QString::number(i * 10)));
+    }*/
 
     text_edit = new QPlainTextEdit(south_widget);
     text_edit->setReadOnly(true);
@@ -81,6 +89,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // --- 3 ---- //
     checkBox_subdirection = new QCheckBox("Also can be subdirection?", north_widget);
+    checkBox_subdirection->setChecked(true);
     checkBox_literals = new QCheckBox("Ignore literals?", north_widget);
     checkBox_identifiers = new QCheckBox("Ignore identifiers?", north_widget);
     QVBoxLayout *checkBox_layout = new QVBoxLayout();
@@ -190,7 +199,7 @@ void MainWindow::on_list_item_selected(QListWidgetItem *item) {
     text_edit->setPlainText(content);  // Display the content of the selected file in text_edit
 }
 
-void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b) {
+void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b, size_t &max_len, std::pair<int,int> &line_numbers) {
     std::ifstream fa(file_a);
     std::ifstream fb(file_b);
     
@@ -214,7 +223,7 @@ void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const
     int len_b = lines_b.size();
     std::vector<std::vector<int>> dp(len_a + 1, std::vector<int>(len_b + 1, 0));
 
-    int max_len = 0; // Length of longest match
+    max_len = 0; // Length of longest match
     std::pair<int, int> max_pos(0, 0); // End position of the longest match
 
     // Dynamic programming table to find longest common consecutive lines
@@ -229,6 +238,7 @@ void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const
             }
         }
     }
+
 
     // Extract the longest common sequence
     if (max_len > 0) {
@@ -283,7 +293,7 @@ void MainWindow::on_go_button_clicked() {
 		// Traverse the directory and collect valid files
 		for (const auto& entry : std::filesystem::directory_iterator("./")) {
 		    if (entry.is_regular_file()) {
-		        std::string file_path = entry.path().string();
+                std::string file_path = entry.path().string();
 		        for (const auto& extension : valid_extensions) {
 		            if (ends_with(file_path, extension)) {
 		                files.push_back(file_path);
@@ -295,19 +305,26 @@ void MainWindow::on_go_button_clicked() {
 
 		////
 		for (size_t i = 0; i < files.size(); ++i) {
-		    std::cout << files[i] << std::endl;
-		}
+            std::cout << files[i] << " -- ";
+        } std::cout << "\n";
 		////
 
 		// Compare each file with every other file
+        size_t match_count = 0;
+        std::pair<int, int> line_numbers;
 		for (size_t i = 0; i < files.size(); ++i) {
-		    for (size_t j = 0; j < files.size(); ++j) {
+            for (size_t j = i + 1; j < files.size(); ++j) {
 		        if (i != j) {  // Avoid processing the same file
 		            std::cout << "Processing " << files[i] << " with " << files[j] << std::endl;
-		            findMostConsecutiveCommonLines(files[i], files[j]);
+                    findMostConsecutiveCommonLines(files[i], files[j], match_count, line_numbers);
+                    int row = table_widget->rowCount();  // Get the current number of rows
+                    table_widget->insertRow(row);  // Insert a new row at the end
+                    table_widget->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(files[i]) + " and " + QString::fromStdString(files[j])));
+                    table_widget->setItem(row, 1, new QTableWidgetItem(QString::number(match_count)));   //matches (count)
+                    table_widget->setItem(row, 2, new QTableWidgetItem(QString::number(line_numbers.first) + "-" + QString::number(line_numbers.second)));   //line numbers
 		        }
 		    }
-		}
+        }
     }
     else {
         qDebug() << "TODO: Not implemented";
