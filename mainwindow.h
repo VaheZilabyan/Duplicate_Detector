@@ -2,11 +2,22 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QFile>
+#include <QFileInfo>
+#include <QFileDialog>
+#include <QTextStream>
+#include <QListWidgetItem>
+#include <QStatusBar>
+#include <QMenu>
+#include <QMenuBar>
+#include <QProcess>
+#include <QDebug>
 #include <QLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QComboBox>
+#include <QMessageBox>
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QListWidget>
@@ -25,31 +36,41 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
-    void findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b, size_t& max_len, std::pair<int, int> &line_numbers);
+    void findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b, int& max_len, std::pair<int, int> &line_numbers);
     bool ends_with(const std::string& str, const std::string& suffix);
+	void findDuplicates(bool includeSubdirs, QString language);
+    void clearContent();
+	~MainWindow();
 
 private slots:
     void on_browse_button_clicked();
     void on_open_editor_clicked();
     void on_list_item_selected(QListWidgetItem *item);
     void on_go_button_clicked();
+    void on_root_source_dir_line_edit_returnPressed();
+    void findingsRowSelected();
 
 private:
-    //Ui::MainWindow *ui;
+	// Size related constants
+	static constexpr int MIN_WIDTH = 650;
+	static constexpr int MIN_HEIGHT = 550;
+    static constexpr int START_SOURCE_WIDE_SIZE = 400;
+    static constexpr std::pair<int, int> StartSize = {1400, 900};
+
     QMenu *file_menu;
     QMenu *view_menu;
     QMenu *help_menu;
     QMenu *about_menu;
-    QTableWidget *table_widget;
-    QPlainTextEdit *text_edit;
-    QLineEdit *line_edit;
+    QTableWidget *findings_table_widget;
+    QPlainTextEdit *file_content_text_edit;
+    QLineEdit *root_source_dir_line_edit;
     QPushButton *browse_button;
-    QSpinBox *spin_box;
+    QSpinBox *chunks_larger_spin_box;
     QComboBox *comboBox_language;
     QCheckBox *checkBox_subdirection;
     QCheckBox *checkBox_literals;
     QCheckBox *checkBox_identifiers;
-    QListWidget *list_widget;
+    QListWidget *files_list_widget;
     QComboBox *comboBox_encoding;
     QPushButton *open_editor;
     QPushButton *go_button;

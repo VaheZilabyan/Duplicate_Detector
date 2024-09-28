@@ -1,23 +1,15 @@
 #include "mainwindow.h"
 
-#include <QFile>
-#include <QFileDialog>
-#include <QTextStream>
-#include <QListWidgetItem>
-#include <QStatusBar>
-#include <QMenu>
-#include <QMenuBar>
-#include <QProcess>
-#include <QDebug>
-
+//
+// Constructor
+// Setup the main window layouts
+//
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-//, ui(new Ui::MainWindow)
 {
-    //ui->setupUi(this);
-    this->resize(800, 660);
-    this->setMinimumWidth(650);
-    this->setMinimumHeight(550);
+    this->resize(StartSize.first, StartSize.second);
+    this->setMinimumWidth(MIN_WIDTH);
+    this->setMinimumHeight(MIN_HEIGHT);
     this->statusBar()->showMessage("test status");
 
     file_menu = new QMenu("File", this);
@@ -41,40 +33,39 @@ MainWindow::MainWindow(QWidget *parent)
     setCentralWidget(centralWidget);
 
     QHBoxLayout *south_layout = new QHBoxLayout(south_widget);
-    table_widget = new QTableWidget(south_widget);
-    table_widget->setColumnCount(3);
-    table_widget->setRowCount(0);
-    table_widget->setHorizontalHeaderItem(0, new QTableWidgetItem("Source"));
-    table_widget->setHorizontalHeaderItem(1, new QTableWidgetItem("Matches"));
-    table_widget->setHorizontalHeaderItem(2, new QTableWidgetItem("Lines"));
+    findings_table_widget = new QTableWidget(south_widget);
+    findings_table_widget->setColumnCount(3);
+    findings_table_widget->setRowCount(0);
+    findings_table_widget->setColumnWidth(0, START_SOURCE_WIDE_SIZE);
+    findings_table_widget->setHorizontalHeaderItem(0, new QTableWidgetItem("Source"));
+    findings_table_widget->setHorizontalHeaderItem(1, new QTableWidgetItem("Matches"));
+    findings_table_widget->setHorizontalHeaderItem(2, new QTableWidgetItem("Lines"));
+    findings_table_widget->setSortingEnabled(true);
+    //
+    // Make it not editable
+    //
+    findings_table_widget->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-    /*for (int i = 0; i < 5; ++i) {
-        int row = table_widget->rowCount();  // Get the current number of rows
-        table_widget->insertRow(row);  // Insert a new row at the end
-        table_widget->setItem(row, 0, new QTableWidgetItem(QString("Item %1").arg(i)));
-        table_widget->setItem(row, 1, new QTableWidgetItem(QString::number(i * 10)));
-    }*/
-
-    text_edit = new QPlainTextEdit(south_widget);
-    text_edit->setReadOnly(true);
-    south_layout->addWidget(table_widget);
-    south_layout->addWidget(text_edit);
+    file_content_text_edit = new QPlainTextEdit(south_widget);
+    file_content_text_edit->setReadOnly(true);
+    south_layout->addWidget(findings_table_widget);
+    south_layout->addWidget(file_content_text_edit);
 
     QVBoxLayout *north_layout = new QVBoxLayout(north_widget);
     // --- 1 ---- //
-    QLabel *root_source_dir = new QLabel("Root source directory", north_widget);
-    line_edit = new QLineEdit(north_widget);
+    QLabel *root_source_dir_label = new QLabel("Root source directory", north_widget);
+    root_source_dir_line_edit = new QLineEdit(north_widget);
     browse_button = new QPushButton("Browse", north_widget);
     QHBoxLayout *layout_1 = new QHBoxLayout();
-    layout_1->addWidget(root_source_dir);
-    layout_1->addWidget(line_edit);
+    layout_1->addWidget(root_source_dir_label);
+    layout_1->addWidget(root_source_dir_line_edit);
     layout_1->addWidget(browse_button);
 
     // --- 2 ---- //
-    QLabel *label_spinbox = new QLabel("Reporte duplicate chunks larger than");
+    QLabel *label_spinbox = new QLabel("Report duplicate chunks larger than");
     QLabel *label_language = new QLabel("Language");
-    spin_box = new QSpinBox(north_widget);
-    spin_box->setMaximum(1000);
+    chunks_larger_spin_box = new QSpinBox(north_widget);
+    chunks_larger_spin_box->setMaximum(1000);
     comboBox_language = new QComboBox(north_widget);
     comboBox_language->addItem("C++");
     comboBox_language->addItem("C");
@@ -82,7 +73,7 @@ MainWindow::MainWindow(QWidget *parent)
     comboBox_language->addItem("Python");
     QHBoxLayout *layout_2 = new QHBoxLayout();
     layout_2->addWidget(label_spinbox);
-    layout_2->addWidget(spin_box);
+    layout_2->addWidget(chunks_larger_spin_box);
     layout_2->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
     layout_2->addWidget(label_language);
     layout_2->addWidget(comboBox_language);
@@ -96,11 +87,11 @@ MainWindow::MainWindow(QWidget *parent)
     checkBox_layout->addWidget(checkBox_subdirection);
     checkBox_layout->addWidget(checkBox_literals);
     checkBox_layout->addWidget(checkBox_identifiers);
-    list_widget = new QListWidget(north_widget);
+    files_list_widget = new QListWidget(north_widget);
     QHBoxLayout *layout_3 = new QHBoxLayout();
     layout_3->addLayout(checkBox_layout);
     layout_3->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
-    layout_3->addWidget(list_widget);
+    layout_3->addWidget(files_list_widget);
 
     // --- 4 ---- //
     QLabel *label_file_encoding = new QLabel("File encoding");
@@ -120,11 +111,20 @@ MainWindow::MainWindow(QWidget *parent)
     north_layout->addLayout(layout_3);
     north_layout->addLayout(layout_4);
 
+    //
+    // Make connections
+    //
+    connect(findings_table_widget->selectionModel(), &QItemSelectionModel::selectionChanged, this, &MainWindow::findingsRowSelected);
     connect(browse_button, &QPushButton::clicked, this, &MainWindow::on_browse_button_clicked);
     connect(open_editor, &QPushButton::clicked, this, &MainWindow::on_open_editor_clicked);
     connect(go_button, &QPushButton::clicked, this, &MainWindow::on_go_button_clicked);
+    connect(files_list_widget, &QListWidget::itemClicked, this, &MainWindow::on_list_item_selected);
+	connect(root_source_dir_line_edit, &QLineEdit::returnPressed, this, &MainWindow::on_root_source_dir_line_edit_returnPressed);
 }
 
+//
+// Opens the file in Editor (VS Code)
+//
 void MainWindow::on_open_editor_clicked() {
     statusBar()->showMessage(filename);
 
@@ -137,7 +137,7 @@ void MainWindow::on_open_editor_clicked() {
     const QString& filePath = "D:/cpp_programs/c++/c++17/optional.cpp";
 
     int line = 1;
-    QString program = "C:/Users/vzila/AppData/Local/Programs/Microsoft VS Code/Code.exe";
+    const QString program = "C:/Users/vzila/AppData/Local/Programs/Microsoft VS Code/Code.exe";
     QStringList arguments;
     arguments << "--goto" << QString("%1:%2").arg(filePath).arg(line);
     bool success = QProcess::startDetached(program, arguments);
@@ -146,13 +146,78 @@ void MainWindow::on_open_editor_clicked() {
     }
 }
 
+//
+// Clears table and files content 
+//
+void MainWindow::clearContent()
+{
+    files_list_widget->clear();
+    file_content_text_edit->clear();
+}
+
+//
+// Handles enter key press on root source line edit. It should update the root source dir path
+//
+void MainWindow::on_root_source_dir_line_edit_returnPressed()
+{
+    clearContent();
+
+    QString dirname = root_source_dir_line_edit->text();
+    QDir dir(dirname);
+    for (const QFileInfo &file : dir.entryInfoList(QDir::Files))
+    {
+        QListWidgetItem *item = new QListWidgetItem(file.fileName());
+        item->setData(Qt::UserRole, file.absolutePath());
+        files_list_widget->addItem(item);
+    }
+
+}
+
+//
+// Handle findings table row selection which should open file content in the text edit area at right.
+//
+void MainWindow::findingsRowSelected() {
+    //
+    // Clear files list widget selection to avoid confusion.
+    //
+    files_list_widget->clearSelection();
+
+    QString directory = root_source_dir_line_edit->text();
+    int selectedRow = findings_table_widget->currentRow();
+    QString source = "";
+
+    if (selectedRow >= 0) {
+        source = findings_table_widget->item(selectedRow, 0)->text().section(' ', 0, 0);;
+    }
+
+    statusBar()->showMessage(directory);
+
+    QString filename = directory + "/" + source;
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return;
+    }
+
+    QTextStream in(&file);
+    QString content = in.readAll();
+    file.close();
+
+	//
+	// Display the content of the selected file in text_edit
+	//
+    file_content_text_edit->setPlainText(content);
+}
+
+//
+// Handles browse button click. It should open file browser.
+//
 void MainWindow::on_browse_button_clicked()
 {
-    list_widget->clear();
-    text_edit->clear();
+    clearContent();
 
     QString fileContent;
     QString filename_ = QFileDialog::getOpenFileName(this, "Choose File");
+
     this->filename = filename_;
     if(filename.isEmpty())
         return;
@@ -163,43 +228,55 @@ void MainWindow::on_browse_button_clicked()
     QTextStream in(&file);
     fileContent = in.readAll();
     file.close();
-    text_edit->setPlainText(fileContent);
+    file_content_text_edit->setPlainText(fileContent);
 
     QString dirname = filename_.remove(filename_.split('/').last());
     QDir dir(dirname);
     for (const QFileInfo &file : dir.entryInfoList(QDir::Files))
     {
         QListWidgetItem *item = new QListWidgetItem(file.fileName());
-        item->setData(Qt::UserRole, file.absolutePath()); // if you need absolute path of the file
-        list_widget->addItem(item);
+        item->setData(Qt::UserRole, file.absolutePath());
+        files_list_widget->addItem(item);
     }
-    line_edit->setText(dirname);
-    connect(list_widget, &QListWidget::itemClicked, this, &MainWindow::on_list_item_selected);
+    root_source_dir_line_edit->setText(dirname);
 }
 
+//
+// Handles file selection. It should preview the selected file in text edit.
+//
 void MainWindow::on_list_item_selected(QListWidgetItem *item) {
+    //
+    // Clear findings table widget row selection to avoid confusion.
+    //
+    findings_table_widget->clearSelection();
+
     if (!item) {
         return; // Guard against null pointer
     }
 
-    QString filePath = item->data(Qt::UserRole).toString(); // Get the absolute path if you stored it
-    statusBar()->showMessage(filePath); // Display the selected file path in the status bar
+    QString filePath = item->data(Qt::UserRole).toString();
+    statusBar()->showMessage(filePath);
 
     QString filename = filePath + "/" + item->text();
-    // Optionally, open the file or perform another action based on the selection
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return; // Handle error if necessary
+        return;
     }
 
     QTextStream in(&file);
     QString content = in.readAll();
     file.close();
 
-    text_edit->setPlainText(content);  // Display the content of the selected file in text_edit
+	//
+	// Display the content of the selected file in text_edit
+	//
+    file_content_text_edit->setPlainText(content);
 }
 
-void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b, size_t &max_len, std::pair<int,int> &line_numbers) {
+//
+// Main algorithm, finds most consecutive common lines between 2 files.
+//
+void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const std::string& file_b, int& max_len, std::pair<int,int> &line_numbers) {
     std::ifstream fa(file_a);
     std::ifstream fb(file_b);
     
@@ -210,8 +287,9 @@ void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const
     
     std::vector<std::string> lines_a, lines_b;
     std::string line;
-
+    //
     // Read lines from both files
+    //
     while (std::getline(fa, line)) {
         lines_a.push_back(line);
     }
@@ -226,7 +304,9 @@ void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const
     max_len = 0; // Length of longest match
     std::pair<int, int> max_pos(0, 0); // End position of the longest match
 
+	//
     // Dynamic programming table to find longest common consecutive lines
+	//
     for (int i = 1; i <= len_a; ++i) {
         for (int j = 1; j <= len_b; ++j) {
             if (lines_a[i - 1] == lines_b[j - 1]) {
@@ -239,97 +319,167 @@ void MainWindow::findMostConsecutiveCommonLines(const std::string& file_a, const
         }
     }
 
+    line_numbers.first = max_pos.first - max_len + 1;
+    line_numbers.second = max_pos.second - max_len + 1;
 
+	/*
     // Extract the longest common sequence
     if (max_len > 0) {
-        std::cout << "Most common duplicate lines between given files are " << max_len << " consecutive lines:" << std::endl;
+        //std::cout << "Most common duplicate lines between given files are " << max_len << " consecutive lines:" << std::endl;
         for (int i = max_pos.first - max_len; i < max_pos.first; ++i) {
-            std::cout << lines_a[i] << std::endl;
+            //std::cout << lines_a[i] << std::endl;
         }
     } else {
-        std::cout << "No common consecutive lines found." << std::endl;
-    }
+        //std::cout << "No common consecutive lines found." << std::endl;
+    }*/
 }
+
+//
+// Checks whether string end withs some pattern (needed for valid extensions).
+//
 bool MainWindow::ends_with(const std::string& str, const std::string& suffix) {
     if (str.length() < suffix.length()) {
-        return false; // str is shorter than suffix
+        return false;
     }
     return str.compare(str.length() - suffix.length(), suffix.length(), suffix) == 0;
 }
 
-void MainWindow::on_go_button_clicked() {
-    QString directory = line_edit->text();  // Get the directory entered in the line edit.
-    int threshold = spin_box->value();       // Get the value from the spin box.
-    QString language = comboBox_language->currentText(); // Get the selected language from the combo box.
-    //bool ignoreLiterals = checkBox_literals->isChecked(); // Check if "Ignore literals?" is checked.
-    //bool ignoreIdentifiers = checkBox_identifiers->isChecked(); // Check if "Ignore identifiers?" is checked.
-    bool includeSubdirs = checkBox_subdirection->isChecked(); // Check if "Also can be subdirection?" is checked.
-
-    // Here, you would typically start the process of analyzing the source code in the specified directory.
-    // You could emit a signal, call a method, or start a new process that performs your analysis.
-
-    // For demonstration, we'll just update the status bar with the parameters chosen.
-    QString message = QString("Going to analyze %1 with threshold %2 for %3").arg(directory).arg(threshold).arg(language);
-    statusBar()->showMessage(message);
-	std::vector<std::string> valid_extensions;
-
-	if (language == "C++") {
-		valid_extensions = {".cpp", ".h", ".hpp", ".c", ".cc"};
-	}
-	// TODO: add else ifs for other languages
-	else {
-		valid_extensions = {".cpp", ".h", ".hpp", ".c", ".cc"};
-		std::cout << "We should never reach there, there is a bug in the code: Call 911" << std::endl;
-	}
-
-	//std::cout << "MY DIR: " << directory.toStdString();
-	// Changing dir    
-	if (chdir(directory.toStdString().c_str()) != 0) {
-        perror("chdir failed");
+//
+// Based on the parameters, calls the main algorithm for each 2 files
+//
+void MainWindow::findDuplicates(bool includeSubdirs, QString language) {
+    std::vector<std::string> valid_extensions;
+    if (language == "C++") {
+        valid_extensions = {".cpp", ".h", ".hpp", ".c", ".cc"};
+    } else {
+        valid_extensions = {".cpp", ".h", ".hpp", ".c", ".cc"};
+        std::cout << "We should never reach there, there is a bug in the code: Call 911" << std::endl;
     }
 
-    if(includeSubdirs) {
-    	std::vector<std::string> files;
-		// Traverse the directory and collect valid files
-		for (const auto& entry : std::filesystem::directory_iterator("./")) {
-		    if (entry.is_regular_file()) {
+    //
+    // Helper lambda for iterator type
+    //
+    auto collectFiles = [&](auto it) {
+        std::vector<std::string> files;
+        for (const auto& entry : it) {
+            if (entry.is_regular_file()) {
                 std::string file_path = entry.path().string();
-		        for (const auto& extension : valid_extensions) {
-		            if (ends_with(file_path, extension)) {
-		                files.push_back(file_path);
-		                break;
-		            }
-		        }
-		    }
-		}
+                for (const auto& extension : valid_extensions) {
+                    if (ends_with(file_path, extension)) {
+                        files.push_back(file_path);
+                        break;
+                    }
+                }
+            }
+        }
+        return files;
+    };
 
-		////
-		for (size_t i = 0; i < files.size(); ++i) {
-            std::cout << files[i] << " -- ";
-        } std::cout << "\n";
-		////
+    //
+    // Collect files using appropriate iterator. Recursive iterators are for subdirs.
+    //
+    std::vector<std::string> files;
+    if (includeSubdirs) {
+        files = collectFiles(std::filesystem::recursive_directory_iterator("./"));
+    } else {
+        files = collectFiles(std::filesystem::directory_iterator("./"));
+    }
 
-		// Compare each file with every other file
-        size_t match_count = 0;
-        std::pair<int, int> line_numbers;
-		for (size_t i = 0; i < files.size(); ++i) {
-            for (size_t j = i + 1; j < files.size(); ++j) {
-		        if (i != j) {  // Avoid processing the same file
-		            std::cout << "Processing " << files[i] << " with " << files[j] << std::endl;
-                    findMostConsecutiveCommonLines(files[i], files[j], match_count, line_numbers);
-                    int row = table_widget->rowCount();  // Get the current number of rows
-                    table_widget->insertRow(row);  // Insert a new row at the end
-                    table_widget->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(files[i]) + " and " + QString::fromStdString(files[j])));
-                    table_widget->setItem(row, 1, new QTableWidgetItem(QString::number(match_count)));   //matches (count)
-                    table_widget->setItem(row, 2, new QTableWidgetItem(QString::number(line_numbers.first) + "-" + QString::number(line_numbers.second)));   //line numbers
-		        }
-		    }
+    //
+    // Compare each file with every other file
+    //
+    int match_count = 0;
+    std::pair<int, int> line_numbers;
+    for (size_t i = 0; i < files.size(); ++i) {
+        for (size_t j = i + 1; j < files.size(); ++j) {
+            //
+            // Call the function that finds the most consecutive common lines
+            //
+            findMostConsecutiveCommonLines(files[i], files[j], match_count, line_numbers);
+            int row = findings_table_widget->rowCount();
+            findings_table_widget->insertRow(row);
+            findings_table_widget->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(files[i]) + " and " + QString::fromStdString(files[j])));
+            //
+            // This is needed for numerical sorting ability for match item column
+            //
+            QTableWidgetItem *matchesItem = new QTableWidgetItem();
+            matchesItem->setData(Qt::DisplayRole, match_count);
+            matchesItem->setData(Qt::UserRole, match_count);
+            matchesItem->setText(QString::number(match_count));
+            findings_table_widget->setItem(row, 1, matchesItem);
+            findings_table_widget->setItem(row, 2, new QTableWidgetItem(QString::number(line_numbers.first) + "-" + QString::number(line_numbers.second)));
         }
     }
-    else {
-        qDebug() << "TODO: Not implemented";
+}
+
+//
+// Go button should run the findDuplicates which runs main algorithm based on parameters.
+//
+void MainWindow::on_go_button_clicked() {
+    //
+    // At first, clear the findings table widget.
+    //
+    findings_table_widget->setRowCount(0);
+
+    //
+    // Get the parameters.
+    //
+    QString directory = root_source_dir_line_edit->text();
+    int threshold = chunks_larger_spin_box->value();
+    QString language = comboBox_language->currentText();
+    //bool ignoreLiterals = checkBox_literals->isChecked();
+    //bool ignoreIdentifiers = checkBox_identifiers->isChecked();
+    bool includeSubdirs = checkBox_subdirection->isChecked();
+
+	//
+    // For demonstration, we'll just update the status bar with the parameters chosen.
+	//
+    QString message = QString("Going to analyze %1 with threshold %2 for %3").arg(directory).arg(threshold).arg(language);
+    statusBar()->showMessage(message);
+
+	//
+	// Make sure directory exists.
+	// We should really never reach there but who knows, even the whale has ale in it. Let's handle this as well.
+	//
+	if (chdir(directory.toStdString().c_str()) != 0) {
+    	QString error_message = QString("The directory \"%1\" does not exist.").arg(directory);
+    	QMessageBox::warning(this, "Directory Error", error_message);
+    	return;
     }
-    // You may want to call another method for actual processing, e.g.:
-    // startAnalysis(directory, threshold, language, ignoreLiterals, ignoreIdentifiers, includeSubdirs);
+
+    //
+    // Call the main algorithm now with parameters
+    //
+    findDuplicates(includeSubdirs, language);
+}
+
+//
+// Destructor
+//
+MainWindow::~MainWindow()
+{
+    delete file_menu;
+    delete view_menu;
+    delete help_menu;
+    delete about_menu;
+
+    delete findings_table_widget;
+    delete file_content_text_edit;
+
+    delete root_source_dir_line_edit;
+    delete browse_button;
+
+    delete chunks_larger_spin_box;
+    delete comboBox_language;
+  
+    delete checkBox_subdirection;
+    delete checkBox_literals;
+    delete checkBox_identifiers;
+  
+    delete files_list_widget;
+
+    delete comboBox_encoding;
+    delete open_editor;
+    delete go_button;
 }
 
