@@ -63,6 +63,7 @@ private:
     QMenu *about_menu;
     QTableWidget *findings_table_widget;
     QPlainTextEdit *file_content_text_edit;
+    QPlainTextEdit *right_file_content_text_edit; // for test
     QLineEdit *root_source_dir_line_edit;
     QPushButton *browse_button;
     QSpinBox *chunks_larger_spin_box;

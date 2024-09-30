@@ -48,8 +48,13 @@ MainWindow::MainWindow(QWidget *parent)
 
     file_content_text_edit = new QPlainTextEdit(south_widget);
     file_content_text_edit->setReadOnly(true);
+    right_file_content_text_edit = new QPlainTextEdit(south_widget);
+    right_file_content_text_edit->setReadOnly(true);
+    right_file_content_text_edit->hide();
+
     south_layout->addWidget(findings_table_widget);
     south_layout->addWidget(file_content_text_edit);
+    south_layout->addWidget(right_file_content_text_edit);
 
     QVBoxLayout *north_layout = new QVBoxLayout(north_widget);
     // --- 1 ---- //
@@ -132,14 +137,11 @@ void MainWindow::on_open_editor_clicked() {
         statusBar()->showMessage("Browse file");
         return;
     }
-    //QFileInfo file_info(filename);
-    //const QString& filePath = file_info.absolutePath();
-    const QString& filePath = "D:/cpp_programs/c++/c++17/optional.cpp";
 
     int line = 1;
     const QString program = "C:/Users/vzila/AppData/Local/Programs/Microsoft VS Code/Code.exe";
     QStringList arguments;
-    arguments << "--goto" << QString("%1:%2").arg(filePath).arg(line);
+    arguments << "--goto" << QString("%1:%2").arg(filename).arg(line);
     bool success = QProcess::startDetached(program, arguments);
     if (!success) {
         qDebug() << "Failed to launch VS Code!";
@@ -185,16 +187,20 @@ void MainWindow::findingsRowSelected() {
     QString directory = root_source_dir_line_edit->text();
     int selectedRow = findings_table_widget->currentRow();
     QString source = "";
+    QString source_2 = "";
 
     if (selectedRow >= 0) {
-        source = findings_table_widget->item(selectedRow, 0)->text().section(' ', 0, 0);;
+        source = findings_table_widget->item(selectedRow, 0)->text().section(' ', 0, 0);
+        source_2 = findings_table_widget->item(selectedRow, 0)->text().section(' ', 2, 2);
     }
 
     statusBar()->showMessage(directory);
 
     QString filename = directory + "/" + source;
+    QString filename_2 = directory + "/" + source_2;
     QFile file(filename);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QFile file_2(filename_2);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text) || !file_2.open(QIODevice::ReadOnly | QIODevice::Text)) {
         return;
     }
 
@@ -202,10 +208,16 @@ void MainWindow::findingsRowSelected() {
     QString content = in.readAll();
     file.close();
 
+    QTextStream in_2(&file_2);
+    QString content_2 = in_2.readAll();
+    file_2.close();
+
 	//
 	// Display the content of the selected file in text_edit
 	//
     file_content_text_edit->setPlainText(content);
+    right_file_content_text_edit->show();
+    right_file_content_text_edit->setPlainText(content_2);
 }
 
 //
@@ -239,6 +251,7 @@ void MainWindow::on_browse_button_clicked()
         files_list_widget->addItem(item);
     }
     root_source_dir_line_edit->setText(dirname);
+    right_file_content_text_edit->hide();
 }
 
 //
@@ -271,6 +284,7 @@ void MainWindow::on_list_item_selected(QListWidgetItem *item) {
 	// Display the content of the selected file in text_edit
 	//
     file_content_text_edit->setPlainText(content);
+    right_file_content_text_edit->hide();
 }
 
 //
