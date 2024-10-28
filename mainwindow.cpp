@@ -48,9 +48,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     file_content_text_edit = new QPlainTextEdit(south_widget);
     file_content_text_edit->setReadOnly(true);
+    QFont font = file_content_text_edit->font();
+    font.setPointSize(10);
+    file_content_text_edit->setFont(font);
+
     right_file_content_text_edit = new QPlainTextEdit(south_widget);
     right_file_content_text_edit->setReadOnly(true);
     right_file_content_text_edit->hide();
+    QFont font1 = right_file_content_text_edit->font();
+    font1.setPointSize(10);
+    right_file_content_text_edit->setFont(font1);
 
     south_layout->addWidget(findings_table_widget);
     south_layout->addWidget(file_content_text_edit);
@@ -176,6 +183,90 @@ void MainWindow::on_root_source_dir_line_edit_returnPressed()
 }
 
 //
+// calculates visual line number. Used for highlighting
+//
+int MainWindow::calculateVisualLineNumber(QPlainTextEdit* textEdit, int logicalLineNumber) {
+    QTextDocument* doc = textEdit->document();
+    QTextCursor cursor(doc);
+    cursor.movePosition(QTextCursor::Start);
+
+    int visualLineNumber = 0;
+    int currentLogicalLine = 1;
+
+    while (!cursor.atEnd() && currentLogicalLine < logicalLineNumber) {
+        cursor.movePosition(QTextCursor::EndOfLine);
+        cursor.movePosition(QTextCursor::Right);
+        visualLineNumber++;
+        if (cursor.atBlockStart()) {
+            currentLogicalLine++;
+        }
+    }
+
+    return visualLineNumber;
+}
+
+//
+// Handles highlighting for duplicated lines
+//
+void MainWindow::highlightLines(QPlainTextEdit* textEdit, int firstNumber, int matches) {
+    //
+    // Get the document from the text edit
+    //
+    QTextDocument* doc = textEdit->document();
+    QTextCursor cursor(doc);
+
+    int visualLineNumber = calculateVisualLineNumber(textEdit, firstNumber);
+
+    //
+    // Move the cursor to the start of the document
+    //
+    cursor.movePosition(QTextCursor::Start);
+
+    //
+    // Move the cursor to the starting line (firstNumber)
+    //
+    for (int i = 0; i < visualLineNumber; ++i) {
+        cursor.movePosition(QTextCursor::Down);
+    }
+
+    //
+    // Set the format for highlighting
+    //
+    QTextCharFormat fmt;
+    fmt.setBackground(QColor(Qt::yellow));
+
+    //
+    // Highlight the specified number of lines
+    //
+    for (int i = 0; i < matches; ++i) {
+        cursor.movePosition(QTextCursor::StartOfBlock);
+        cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        cursor.mergeCharFormat(fmt);
+        cursor.movePosition(QTextCursor::NextBlock);
+    }
+}
+
+//
+// Handles highlight clearing
+//
+void MainWindow::clearHighlighting(QPlainTextEdit* textEdit) {
+    QTextDocument* doc = textEdit->document();
+    QTextCursor cursor(doc);
+
+    //
+    // Select the entire document
+    //
+    cursor.select(QTextCursor::Document);
+
+    //
+    // Set the format to default (no background color)
+    //
+    QTextCharFormat fmt;
+    fmt.setBackground(Qt::transparent);
+    cursor.setCharFormat(fmt);
+}
+
+//
 // Handle findings table row selection which should open file content in the text edit area at right.
 //
 void MainWindow::findingsRowSelected() {
@@ -184,6 +275,15 @@ void MainWindow::findingsRowSelected() {
     //
     files_list_widget->clearSelection();
 
+    // 
+    // Clear highlighting of text edits
+    //
+    clearHighlighting(file_content_text_edit);
+    clearHighlighting(right_file_content_text_edit);
+
+    int matches = 0;
+    int firstNumber = 0;
+    int secondNumber = 0;
     QString directory = root_source_dir_line_edit->text();
     int selectedRow = findings_table_widget->currentRow();
     QString source = "";
@@ -192,7 +292,23 @@ void MainWindow::findingsRowSelected() {
     if (selectedRow >= 0) {
         source = findings_table_widget->item(selectedRow, 0)->text().section(' ', 0, 0);
         source_2 = findings_table_widget->item(selectedRow, 0)->text().section(' ', 2, 2);
+        QString startLines = findings_table_widget->item(selectedRow, 2)->text();
+        QStringList parts = startLines.split('-');
+
+        if (parts.size() == 2) {
+            bool ok1, ok2;
+            firstNumber = parts[0].toInt(&ok1);
+            secondNumber = parts[1].toInt(&ok2);
+
+            if (!ok1 || !ok2) {
+                QMessageBox::warning(this, "Conversion Error", "Invalid numbers in: " + startLines);
+            }
+        }
+
+        QString matches_text = findings_table_widget->item(selectedRow, 1)->text();
+        matches = matches_text.toInt();
     }
+
 
     statusBar()->showMessage(directory);
 
@@ -216,8 +332,10 @@ void MainWindow::findingsRowSelected() {
 	// Display the content of the selected file in text_edit
 	//
     file_content_text_edit->setPlainText(content);
+    highlightLines(file_content_text_edit, firstNumber, matches);
     right_file_content_text_edit->show();
     right_file_content_text_edit->setPlainText(content_2);
+    highlightLines(right_file_content_text_edit, secondNumber, matches);
 }
 
 //

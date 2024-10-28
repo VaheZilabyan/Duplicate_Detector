@@ -40,6 +40,9 @@ public:
     bool ends_with(const std::string& str, const std::string& suffix);
 	void findDuplicates(bool includeSubdirs, QString language);
     void clearContent();
+    int calculateVisualLineNumber(QPlainTextEdit* textEdit, int logicalLineNumber);
+    void highlightLines(QPlainTextEdit* textEdit, int firstNumber, int matches);
+    void clearHighlighting(QPlainTextEdit* textEdit);
 	~MainWindow();
 
 private slots:
@@ -79,4 +82,3 @@ private:
 };
 
 #endif // MAINWINDOW_H
-
